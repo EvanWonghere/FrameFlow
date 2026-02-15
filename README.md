@@ -7,7 +7,8 @@ A small tool to process sprite sheet images: one or more large images containing
 - **Background removal**: **Solid-color** (specify `--bg` + optional `--tolerance`) or **AI-based** with **rembg** (`--rembg`) for better results on complex backgrounds.
 - **Grid split**: Cut the sheet into an **M×N** grid (rows × cols). Use one number for **N×N** (e.g. `--grid 4`) or two for **M×N** (e.g. `--grid 4 8`). Row-major order.
 - **Batch + glob**: Pass multiple files or a **glob pattern** (e.g. `raw/*.png`); all are processed with the same options.
-- **CLI**: Configurable input path(s) or pattern, grid, background mode, output directory, and preview GIF.
+- **Preview**: Export as **GIF**, **APNG**, or **MP4** (`--preview-format`). Optional **`--preview-speed`** (playback speed multiplier) and **`--preview-checkerboard`** (checkerboard background to show transparency).
+- **CLI**: Configurable input path(s) or pattern, grid, background mode, output directory, and preview options.
 
 ## Requirements
 
@@ -58,6 +59,10 @@ python cli.py sheet.png --grid 4 8 --bg "#FFFFFF" --output ./frames
 # With tolerance for anti-aliasing (0–255) when using --bg
 python cli.py sheet.png --grid 4 --bg "#FFFFFF" --tolerance 10 --output ./frames
 
+# Preview as APNG or MP4, with checkerboard to show transparency
+python cli.py sheet.png --grid 4 --rembg -o ./frames --preview-format apng --preview-checkerboard
+python cli.py sheet.png --grid 4 --rembg -o ./frames --preview-format mp4 --preview-speed 2
+
 # Glob: all PNGs in raw/ (quote the pattern so the script expands it)
 ./run.sh "raw/*.png" --grid 4 -o ./frames --rembg
 
@@ -75,13 +80,12 @@ Or use the wrapper (no need to activate the env first):
 ./run.sh Idle.png Run.png --grid 4 --bg "#FFFFFF" --output ./frames
 ```
 
-Output layout: for each input, a **subfolder named after the input image** (no extension) is created under the output directory. Frames are named **`原图名_序列号.png`** (e.g. `Idle_1.png`, `Idle_2.png`, …) in **row-major** order. A preview **GIF** is also written there (e.g. `frames/Idle/Idle.gif`).
+Output layout: for each input, a **subfolder named after the input image** (no extension) is created under the output directory. Frames are named **`原图名_序列号.png`** (e.g. `Idle_1.png`, `Idle_2.png`, …) in **row-major** order. A **preview** file is also written there (e.g. `Idle.gif`, `Idle.apng`, or `Idle.mp4` depending on `--preview-format`).
 
-Examples:
-
-- `python cli.py Idle.png --grid 4 --rembg -o ./frames` → `frames/Idle/Idle_1.png` … and `Idle.gif`.
-- Glob: `./run.sh "raw/*.png" --grid 4 -o ./frames` expands to all `raw/*.png` and processes each with the same grid.
-Use `--gif-duration` to set milliseconds per frame (default 100). First run with `--rembg` may be slow (model download).
+- **`--preview-format`**: `gif` (default), `apng`, or `mp4`. APNG/MP4 require `pip install apng imageio imageio-ffmpeg`.
+- **`--preview-speed`**: Speed multiplier (e.g. `2` = twice as fast). Effective duration per frame = `--gif-duration` / `--preview-speed`.
+- **`--preview-checkerboard`**: Composite the preview on a light gray/white checkerboard so transparent areas are visible.
+- **`--gif-duration`**: Base duration per frame in ms (default 100). First run with `--rembg` may be slow (model download).
 
 ## Project structure
 
@@ -103,11 +107,12 @@ ProcessFrameAnimationSheetImage/
 ```
 
 - **Input**: File path(s) or **glob pattern** (e.g. `raw/*.png`). With a pattern, quote it in the shell: `./run.sh "raw/*.png" --grid 4 -o ./frames`.
-- **Output**: Base directory given by `--output` (e.g. `./frames`). For input `Idle.png`, frames and GIF go to `frames/Idle/`: `Idle_1.png` … `Idle_N.png`, `Idle.gif`; optional full sheet as `Idle_sheet.png` with `--save-full`.
+- **Output**: Base directory given by `--output` (e.g. `./frames`). For input `Idle.png`, frames and preview go to `frames/Idle/`: `Idle_1.png` … `Idle_N.png`, plus `Idle.gif`/`Idle.apng`/`Idle.mp4`; optional full sheet as `Idle_sheet.png` with `--save-full`.
 
 ## Notes / Considerations
 
 - **Background**: Use **`--rembg`** for AI-based removal (recommended when the background isn’t a uniform color), or **`--bg HEX`** for solid-color removal with optional **`--tolerance`**.
+- **Preview**: Use **`--preview-format apng`** or **`mp4`** for alternative previews; **`--preview-checkerboard`** adds a checkerboard behind transparent areas; **`--preview-speed 2`** doubles playback speed.
 - **Glob**: Input can be a glob pattern (e.g. `raw/*.png`). Quote it so the script receives the pattern and expands it: `./run.sh "raw/*.png" --grid 4 -o ./frames`.
 - **Grid**: one number `--grid N` → N×N; two numbers `--grid R C` → R rows × C cols. Frames are emitted in **row-major** order.
 - **Output format** is PNG to preserve the alpha channel. First run with `--rembg` downloads a model; large batches may use significant memory.

@@ -8,15 +8,16 @@ import sys
 from pathlib import Path
 
 # Unbuffered output so progress and logs show in real time (e.g. when run via conda run)
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(line_buffering=True)
-    sys.stderr.reconfigure(line_buffering=True)
+getattr(sys.stdout, "reconfigure", lambda **kw: None)(line_buffering=True)
+getattr(sys.stderr, "reconfigure", lambda **kw: None)(line_buffering=True)
 
 from PIL import Image
 from tqdm import tqdm
 
 from src.process_sheet import (
+    frames_to_apng,
     frames_to_gif,
+    frames_to_mp4,
     make_background_transparent,
     remove_background_rembg,
     split_into_frames,
@@ -56,9 +57,11 @@ def process_one(
     bg_rgb: tuple[int, int, int] | None,
     tolerance: int,
     save_full: bool,
-    gif_duration_ms: int,
+    preview_duration_ms: int,
+    preview_format: str,
+    preview_checkerboard: bool,
 ) -> None:
-    """Process a single sprite sheet: transparent, split, save frames + GIF."""
+    """Process a single sprite sheet: transparent, split, save frames + preview."""
     stem = input_path.stem
     frame_dir = output_base / stem
     # Ensure we never write outside output_base (path traversal safety)
@@ -71,8 +74,7 @@ def process_one(
     img = Image.open(input_path).convert("RGB")
 
     if use_rembg:
-        # rembg works per subject: split first, then remove bg on each frame.
-        # Running rembg on the full sheet treats the whole grid as one scene and fails.
+        # Split original, then rembg each frame (better quality than full-sheet rembg).
         raw_frames = split_into_frames(img, rows, cols)
         frames = [
             remove_background_rembg(f)
@@ -107,9 +109,16 @@ def process_one(
         frame.save(path, "PNG")
     print(f"  Saved {len(frames)} frames to {frame_dir} ({stem}_1 .. {stem}_{len(frames)}).")
 
-    gif_path = frame_dir / f"{stem}.gif"
-    frames_to_gif(frames, gif_path, duration_ms=gif_duration_ms)
-    print(f"  Saved preview GIF: {gif_path}")
+    preview_path = frame_dir / f"{stem}.{preview_format}"
+    if preview_format == "gif":
+        frames_to_gif(frames, preview_path, duration_ms=preview_duration_ms, checkerboard=preview_checkerboard)
+    elif preview_format == "apng":
+        frames_to_apng(frames, preview_path, duration_ms=preview_duration_ms, checkerboard=preview_checkerboard)
+    elif preview_format == "mp4":
+        frames_to_mp4(frames, preview_path, duration_ms=preview_duration_ms, checkerboard=preview_checkerboard)
+    else:
+        raise ValueError(f"Unknown preview format: {preview_format}")
+    print(f"  Saved preview ({preview_format}): {preview_path}")
 
 
 def main() -> None:
@@ -169,19 +178,40 @@ def main() -> None:
         type=int,
         default=100,
         metavar="MS",
-        help="GIF duration per frame in ms, default 100",
+        help="Base duration per frame in ms for preview (default 100). Combined with --preview-speed.",
+    )
+    parser.add_argument(
+        "--preview-speed",
+        type=float,
+        default=1.0,
+        metavar="F",
+        help="Preview playback speed multiplier (e.g. 2 = twice as fast). Effective duration = gif-duration / preview-speed.",
+    )
+    parser.add_argument(
+        "--preview-format",
+        type=str,
+        choices=["gif", "apng", "mp4"],
+        default="gif",
+        metavar="FMT",
+        help="Preview format: gif, apng, or mp4 (default gif).",
+    )
+    parser.add_argument(
+        "--preview-checkerboard",
+        action="store_true",
+        help="Use a checkerboard background in the preview to show transparency clearly.",
     )
     args = parser.parse_args()
 
     if len(args.grid) == 1:
-        rows = cols = args.grid[0]
+        rows, cols = args.grid[0], args.grid[0]
     elif len(args.grid) == 2:
         rows, cols = args.grid[0], args.grid[1]
     else:
         raise SystemExit("--grid must be one number (N×N) or two numbers (rows cols).")
-
     if rows < 1 or cols < 1:
         raise SystemExit("Grid rows and cols must be >= 1.")
+
+    preview_duration_ms = int(max(1, args.gif_duration / max(0.1, args.preview_speed)))
 
     inputs = expand_inputs(args.input)
     missing = [p for p in inputs if not p.is_file()]
@@ -220,7 +250,9 @@ def main() -> None:
             bg_rgb,
             args.tolerance,
             args.save_full,
-            args.gif_duration,
+            preview_duration_ms,
+            args.preview_format,
+            args.preview_checkerboard,
         )
 
 

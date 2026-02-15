@@ -7,7 +7,8 @@
 - **去底**：**纯色去底**（指定 `--bg` 与可选 `--tolerance`）或 **rembg AI 去底**（`--rembg`），复杂背景建议用 rembg。
 - **按网格切割**：大图按 **M×N**（行×列）网格切割。一个数表示 **N×N**（如 `--grid 4`），两个数表示 **M×N**（如 `--grid 4 8`）。行优先顺序。
 - **批量与通配**：可传入多个文件或 **通配符**（如 `raw/*.png`），同一套参数处理。
-- **命令行**：可配置输入路径/通配、网格、去底方式、输出目录及预览 GIF。
+- **预览**：可导出 **GIF**、**APNG** 或 **MP4**（`--preview-format`）；可选 **`--preview-speed`**（播放速度倍数）和 **`--preview-checkerboard`**（棋盘格背景以显示透明区域）。
+- **命令行**：可配置输入路径/通配、网格、去底方式、输出目录及预览选项。
 
 ## 环境要求
 
@@ -58,6 +59,10 @@ python cli.py sheet.png --grid 4 8 --bg "#FFFFFF" --output ./frames
 # 带容差（使用 --bg 时抗锯齿），0–255
 python cli.py sheet.png --grid 4 --bg "#FFFFFF" --tolerance 10 --output ./frames
 
+# 预览为 APNG 或 MP4，棋盘格显示透明
+python cli.py sheet.png --grid 4 --rembg -o ./frames --preview-format apng --preview-checkerboard
+python cli.py sheet.png --grid 4 --rembg -o ./frames --preview-format mp4 --preview-speed 2
+
 # 通配符：raw/ 下所有 PNG（通配符需加引号由脚本展开）
 ./run.sh "raw/*.png" --grid 4 -o ./frames --rembg
 
@@ -75,9 +80,12 @@ python cli.py sheet.png --grid 4 --rembg --output ./frames --save-full
 ./run.sh Idle.png Run.png --grid 4 --bg "#FFFFFF" --output ./frames
 ```
 
-输出结构：每张输入图在输出目录下按 **原图文件名（无扩展名）** 生成子文件夹，帧图片命名为 **`原图名_序列号.png`**（如 `Idle_1.png`、`Idle_2.png` …），顺序为 **行优先**。同时在该文件夹内生成预览 **GIF**（如 `frames/Idle/Idle.gif`）。可通过 `--gif-duration` 设置每帧显示毫秒数（默认 100）。
+输出结构：每张输入图在输出目录下按 **原图文件名（无扩展名）** 生成子文件夹，帧图片命名为 **`原图名_序列号.png`**（如 `Idle_1.png`、`Idle_2.png` …），顺序为 **行优先**。同时在该文件夹内生成 **预览** 文件（如 `Idle.gif`、`Idle.apng` 或 `Idle.mp4`，由 `--preview-format` 决定）。
 
-示例：单张 `python cli.py Idle.png --grid 4 --rembg -o ./frames` → `frames/Idle/` 下帧图与 `Idle.gif`。通配 `./run.sh "raw/*.png" --grid 4 -o ./frames` 会展开 `raw/*.png` 并逐张处理。首次使用 `--rembg` 会下载模型，可能较慢。
+- **`--preview-format`**：`gif`（默认）、`apng` 或 `mp4`。APNG/MP4 需安装 `apng`、`imageio`、`imageio-ffmpeg`。
+- **`--preview-speed`**：播放速度倍数（如 `2` 表示两倍速）。实际每帧时长 = `--gif-duration` / `--preview-speed`。
+- **`--preview-checkerboard`**：在预览中叠加浅灰/白棋盘格背景，便于查看透明区域。
+- **`--gif-duration`**：每帧基准时长（毫秒，默认 100）。首次使用 `--rembg` 会下载模型，可能较慢。
 
 ## 项目结构
 
@@ -99,11 +107,12 @@ ProcessFrameAnimationSheetImage/
 ```
 
 - **输入**：文件路径（可多个）或 **通配符**（如 `raw/*.png`）。使用通配时在 shell 中加引号：`./run.sh "raw/*.png" --grid 4 -o ./frames`。
-- **输出**：由 `--output` 指定根目录（如 `./frames`）。例如输入 `Idle.png` 时，帧与 GIF 写入 `frames/Idle/`：`Idle_1.png` … `Idle_N.png`、`Idle.gif`；使用 `--save-full` 时另存整张去底图为 `Idle_sheet.png`。
+- **输出**：由 `--output` 指定根目录（如 `./frames`）。例如输入 `Idle.png` 时，帧与预览写入 `frames/Idle/`：`Idle_1.png` … `Idle_N.png` 及 `Idle.gif`/`Idle.apng`/`Idle.mp4`；使用 `--save-full` 时另存整张去底图为 `Idle_sheet.png`。
 
 ## 注意事项
 
 - **去底**：**`--rembg`** 为 AI 去底（背景不纯时推荐），**`--bg HEX`** 为纯色去底，可配 **`--tolerance`**。
+- **预览**：**`--preview-format apng`** 或 **`mp4`** 可导出其他格式；**`--preview-checkerboard`** 为透明区加棋盘格；**`--preview-speed 2`** 为两倍速播放。
 - **通配符**：输入可为通配（如 `raw/*.png`），需加引号让脚本接收并展开：`./run.sh "raw/*.png" --grid 4 -o ./frames`。
 - **切割**：`--grid N` 为 N×N，`--grid R C` 为 R 行×C 列。帧顺序为 **行优先**。
 - **输出格式**为 PNG。首次 `--rembg` 会下载模型；大批量注意内存。
