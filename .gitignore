@@ -1,0 +1,13 @@
+# Conda prefix env (if created with --prefix ./.conda)
+.conda/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Output
+frames/

@@ -1,0 +1,13 @@
+# Conda environment for this project. Create with:
+#   conda env create -f environment.yml
+# Activate with:
+#   conda activate process-frame-sheet
+name: process-frame-sheet
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+    - -r requirements.txt
